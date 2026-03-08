@@ -13,7 +13,7 @@ enum class Type
 
 enum Month 
 {
-    january,
+    january = 1,
     february,
     march,
     april,
@@ -27,10 +27,30 @@ enum Month
     december,
 };
 
+inline std::string monthToString(Month month)
+{
+    switch(month)
+    {
+        case january: return std::string("January");
+        case february: return std::string("February");
+        case march: return std::string("March");
+        case april: return std::string("April");
+        case may: return std::string("May");
+        case june: return std::string("June");
+        case july: return std::string("July");
+        case august: return std::string("August");
+        case september: return std::string("September");
+        case october: return std::string("October");
+        case november: return std::string("November");
+        case december: return std::string("December");
+        default: return std::string("");
+    }
+}
+
 struct Date
 {
     int day;
-    int month;
+    Month month;
     int year;
 
     std::string toString() const 

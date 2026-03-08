@@ -3,7 +3,7 @@
 #include "expense.h"
 #include <cmath>
 #include <ncurses.h>
-
+#include <string>
 
 ListWindow::ListWindow(int h, int w)
     : m_title("Expense tracker")
@@ -19,16 +19,16 @@ ListWindow::ListWindow(int h, int w)
 
     m_outerWindow = newwin(m_height, m_width, 0, 0);
     m_centerWindow = derwin(m_outerWindow, m_height - 2, m_width, 2, 0);
-
+    m_pageSize = m_height - 8;
+    m_pageNum = 0;
+    m_row = 2;
     //keypad(mainWin, TRUE);
 }
-
 
 void ListWindow::draw(const State& state)
 {   
     werase(m_outerWindow);
     werase(m_centerWindow);
-
     
     drawCenterWindow(state);
 
@@ -39,6 +39,7 @@ void ListWindow::draw(const State& state)
     {
         mvwhline(m_outerWindow, i, 0, ' ', m_width);
     }
+    changeTitle(state);
     mvwprintw(m_outerWindow, 1, m_width / 2 - m_title.length() / 2, "%s", m_title.c_str());
     wattroff(m_outerWindow, COLOR_PAIR(1));
     wattroff(m_outerWindow, A_BOLD);
@@ -47,18 +48,19 @@ void ListWindow::draw(const State& state)
     wattron(m_outerWindow, COLOR_PAIR(1));
     mvwhline(m_outerWindow, m_height - 1, 0, ' ', m_width);
     drawInfo();
+    wprintw(m_outerWindow, " Index:%d", state.highlight);
     wattroff(m_outerWindow, COLOR_PAIR(1));
 
-    update();
+    update(state);
 }
 
-
-void ListWindow::update()
+void ListWindow::update(const State& state)
 {
+    //changePage(state);
+
     wrefresh(m_outerWindow);
     wrefresh(m_centerWindow);
 }
-
 
 void ListWindow::drawCommands()
 {   
@@ -70,48 +72,59 @@ void ListWindow::drawCommands()
     wattroff(m_outerWindow, A_BOLD);
 }
 
-
 void ListWindow::drawInfo()
 {
     drawCommands();
-    wprintw(m_outerWindow, "Page: 1");
+    wprintw(m_outerWindow, "Page:%d", m_pageNum + 1);
 }
 
-
-void ListWindow::drawCenterWindow(const State& state) const
+void ListWindow::drawCenterWindow(const State& state)
 {   
     wattron(m_centerWindow, A_BOLD);
     mvwprintw(m_centerWindow, 1, 1, "%s", getExpenseTitle(m_width).c_str());
     wattroff(m_centerWindow, A_BOLD);
     mvwhline(m_centerWindow, 2, 1, ACS_HLINE, m_width - 2);
-    
+   
+    // Calculate page number
+    m_pageNum = state.highlight / m_pageSize;
+
+    // Expense vector starting point
+    int startIndex = m_pageNum * m_pageSize;
+
     // Draw all the expenses
-    for(int i = 0; i < state.expenses.size(); i++)
-    {   
+    for(int i = 0; i < m_pageSize; i++)
+    {     
+        int index = startIndex + i;
+
+        if(index >= state.expenses.size())
+        {
+            break;
+        } 
         
-        if(i == state.highlight) 
+        // Highlight selected row
+        if(index == state.highlight) 
         {   
             wattron(m_centerWindow, A_REVERSE);
             mvwhline(m_centerWindow, i + 3, 1, ' ', m_width);
         }
 
-        mvwprintw(m_centerWindow, i + 3, 2, "%s", state.expenses.at(i).date.toString().c_str());
-        mvwprintw(m_centerWindow, i + 3, 20, "%s", state.expenses.at(i).description.c_str());
-        mvwprintw(m_centerWindow, i + 3, 48, "%s", state.expenses.at(i).category.c_str());
+        mvwprintw(m_centerWindow, i + 3, 2, "%s", state.expenses.at(index).date.toString().c_str());
+        mvwprintw(m_centerWindow, i + 3, 20, "%s", state.expenses.at(index).description.c_str());
+        mvwprintw(m_centerWindow, i + 3, 48, "%s", state.expenses.at(index).category.c_str());
 
-        std::string amountStr = std::to_string(state.expenses.at(i).amount);
+        std::string amountStr = std::to_string(state.expenses.at(index).amount);
 
         if(state.expenses.at(i).type == Type::income)
         {
-            if(i == state.highlight) wattron(m_centerWindow, COLOR_PAIR(6));
+            if(index == state.highlight) wattron(m_centerWindow, COLOR_PAIR(6));
             else wattron(m_centerWindow, COLOR_PAIR(3));
-            mvwprintw(m_centerWindow, i + 3, m_width - amountStr.length(), "+%.2f", state.expenses.at(i).amount);
+            mvwprintw(m_centerWindow, i + 3, m_width - amountStr.length(), "+%.2f", state.expenses.at(index).amount);
         }
         else if(state.expenses.at(i).type == Type::expense)
         {
-            if(i == state.highlight) wattron(m_centerWindow, COLOR_PAIR(5));
+            if(index == state.highlight) wattron(m_centerWindow, COLOR_PAIR(5));
             else wattron(m_centerWindow, COLOR_PAIR(2));
-            mvwprintw(m_centerWindow, i + 3, m_width - amountStr.length(), "-%.2f", state.expenses.at(i).amount);
+            mvwprintw(m_centerWindow, i + 3, m_width - amountStr.length(), "-%.2f", state.expenses.at(index).amount);
         }
         wattroff(m_centerWindow, COLOR_PAIR(2) | COLOR_PAIR(3) | COLOR_PAIR(5) | COLOR_PAIR(6) | A_REVERSE);
     }
@@ -122,6 +135,19 @@ void ListWindow::drawCenterWindow(const State& state) const
     std::string totalStr = std::to_string(state.total);
     mvwprintw(m_centerWindow, m_height - 4, m_width - totalStr.length() + 1, "%.2f", state.total);
     wattroff(m_centerWindow, A_BOLD);
+}
+
+void ListWindow::changePage(const State& state)
+{   
+    // Calculate page number
+    m_pageNum = (state.highlight + 1) / m_pageSize + 1;
+}
+
+void ListWindow::changeTitle(const State& state)
+{   
+    Month month = state.expenses.at(state.highlight).date.month;
+    int year = state.expenses.at(state.highlight).date.year;
+    m_title = "Expense tracker - " + monthToString(month) + " " + std::to_string(year); 
 }
 
 
