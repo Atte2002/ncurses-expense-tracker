@@ -9,8 +9,8 @@
 struct State
 {
     std::vector<Expense> expenses;
-    int highlight = 0;
-
+    int highlight = 0; // Tells the index in the expenses vector
+    
     enum class Window
     {
         List,
@@ -18,7 +18,7 @@ struct State
         Overview
     };
 
-    Window current = Window::List;
+    Window currentWindow = Window::List;
     bool running = true;
     double total = 0;
 };

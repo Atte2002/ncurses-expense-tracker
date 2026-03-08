@@ -97,7 +97,7 @@ void App::readCSV()
         std::getline(ssDate, temp, '-');
         date.day = std::stoi(temp);
         std::getline(ssDate, temp, '-');
-        date.month = std::stoi(temp);
+        date.month = static_cast<Month>(std::stoi(temp));
         std::getline(ssDate, temp, '-');
         date.year = std::stoi(temp);
                 
@@ -119,10 +119,16 @@ void App::handleInput(int ch)
         case 'e':
             break;
         case KEY_DOWN:
-            m_state.highlight++;
+            if(m_state.highlight < m_state.expenses.size() - 1)
+            {
+                m_state.highlight++;
+            }
             break;
         case KEY_UP:
-            m_state.highlight--;
+            if(m_state.highlight > 0)
+            {
+                m_state.highlight--;
+            }
             break;
     }  
 }
